@@ -127,7 +127,7 @@ func genaiResponseToStreamCompletionResponse(
 		ID:      fmt.Sprintf("chatcmpl-%s", respID),
 		Object:  "chat.completion.chunk",
 		Created: created,
-		Model:   GetMappedModel(model),
+		Model:   model,
 		Choices: make([]CompletionChoice, 0, len(genaiResp.Candidates)),
 	}
 
@@ -162,7 +162,7 @@ func genaiResponseToOpenaiResponse(
 		ID:      fmt.Sprintf("chatcmpl-%s", util.GetUUID()),
 		Object:  "chat.completion",
 		Created: time.Now().Unix(),
-		Model:   GetMappedModel(model),
+		Model:   model,
 		Choices: make([]openai.ChatCompletionChoice, 0, len(genaiResp.Candidates)),
 	}
 
@@ -266,7 +266,7 @@ func (g *GeminiAdapter) GenerateEmbedding(
 	openaiResp := openai.EmbeddingResponse{
 		Object: "list",
 		Data:   make([]openai.Embedding, 0, len(genaiResp.Embeddings)),
-		Model:  openai.EmbeddingModel(GetMappedModel(g.model)),
+		Model:  "models/text-embedding-004",
 	}
 
 	for i, genaiEmbedding := range genaiResp.Embeddings {

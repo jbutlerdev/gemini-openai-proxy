@@ -26,7 +26,7 @@ type ChatCompletionRequest struct {
 }
 
 func (req *ChatCompletionRequest) ToGenaiMessages() ([]*genai.Content, error) {
-	if req.Model == TextEmbedding004 || req.Model == string(openai.AdaEmbeddingV2) {
+	if req.Model == "models/text-embedding-004" || req.Model == "models/text-embedding-003" {
 		return nil, errors.New("Chat Completion is not supported for embedding model")
 	}
 
@@ -141,7 +141,7 @@ type EmbeddingRequest struct {
 }
 
 func (req *EmbeddingRequest) ToGenaiMessages() ([]*genai.Content, error) {
-	if req.Model != TextEmbedding004 && req.Model != string(openai.AdaEmbeddingV2) {
+	if req.Model != "models/text-embedding-004" && req.Model != "models/text-embedding-003" {
 		return nil, errors.New("Embedding is not supported for chat model " + req.Model)
 	}
 

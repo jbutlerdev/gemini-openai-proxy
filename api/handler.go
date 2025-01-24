@@ -8,10 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/generative-ai-go/genai"
-	openai "github.com/sashabaranov/go-openai"
-	"google.golang.org/api/option"
-	"google.golang.org/api/googleapi"
 	"github.com/pkg/errors"
+	openai "github.com/sashabaranov/go-openai"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iterator"
 
 	"github.com/zhu327/gemini-openai-proxy/pkg/adapter"
 )
@@ -22,57 +22,42 @@ func IndexHandler(c *gin.Context) {
 	})
 }
 
-func ModelListHandler(c *gin.Context) {
-	owner := adapter.GetOwner()
+func ModelListHandler(c *gin.Context, client *genai.Client) {
+	ctx := c.Request.Context()
+	iter := client.ListModels(ctx)
+	models := make([]openai.Model, 0)
+	for {
+		m, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+		models = append(models, openai.Model{
+			CreatedAt: 1686935002,
+			ID:        m.Name,
+			Object:    "model",
+			OwnedBy:   "gemini",
+		})
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
-		"data": []any{
-			openai.Model{
-				CreatedAt: 1686935002,
-				ID:        adapter.GetModel(openai.GPT3Dot5Turbo),
-				Object:    "model",
-				OwnedBy:   owner,
-			},
-			openai.Model{
-				CreatedAt: 1686935002,
-				ID:        adapter.GetModel(openai.GPT4),
-				Object:    "model",
-				OwnedBy:   owner,
-			},
-			openai.Model{
-				CreatedAt: 1686935002,
-				ID:        adapter.GetModel(openai.GPT4TurboPreview),
-				Object:    "model",
-				OwnedBy:   owner,
-			},
-			openai.Model{
-				CreatedAt: 1686935002,
-				ID:        adapter.GetModel(openai.GPT4VisionPreview),
-				Object:    "model",
-				OwnedBy:   owner,
-			},
-			openai.Model{
-				CreatedAt: 1686935002,
-				ID:        adapter.GetModel(string(openai.AdaEmbeddingV2)),
-				Object:    "model",
-				OwnedBy:   owner,
-			},
-		},
+		"data":   models,
 	})
 }
 
-func ModelRetrieveHandler(c *gin.Context) {
+func ModelRetrieveHandler(c *gin.Context, client *genai.Client) {
 	model := c.Param("model")
-	owner := adapter.GetOwner()
 	c.JSON(http.StatusOK, openai.Model{
 		CreatedAt: 1686935002,
 		ID:        model,
 		Object:    "model",
-		OwnedBy:   owner,
+		OwnedBy:   "gemini",
 	})
 }
 
-func ChatProxyHandler(c *gin.Context) {
+func ChatProxyHandler(c *gin.Context, client *genai.Client) {
 	// Retrieve the Authorization header value
 	authorizationHeader := c.GetHeader("Authorization")
 	// Declare a variable to store the OPENAI_API_KEY
@@ -104,19 +89,8 @@ func ChatProxyHandler(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	client, err := genai.NewClient(ctx, option.WithAPIKey(openaiAPIKey))
-	if err != nil {
-		log.Printf("new genai client error %v\n", err)
-		c.JSON(http.StatusBadRequest, openai.APIError{
-			Code:    http.StatusBadRequest,
-			Message: err.Error(),
-		})
-		return
-	}
-	defer client.Close()
 
-	model := req.ToGenaiModel()
-	gemini := adapter.NewGeminiAdapter(client, model)
+	gemini := adapter.NewGeminiAdapter(client, req.Model)
 
 	if !req.Stream {
 		resp, err := gemini.GenerateContent(ctx, req, messages)
@@ -202,7 +176,7 @@ func setEventStreamHeaders(c *gin.Context) {
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 }
 
-func EmbeddingProxyHandler(c *gin.Context) {
+func EmbeddingProxyHandler(c *gin.Context, client *genai.Client) {
 	// Retrieve the Authorization header value
 	authorizationHeader := c.GetHeader("Authorization")
 	// Declare a variable to store the OPENAI_API_KEY
@@ -234,19 +208,8 @@ func EmbeddingProxyHandler(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	client, err := genai.NewClient(ctx, option.WithAPIKey(openaiAPIKey))
-	if err != nil {
-		log.Printf("new genai client error %v\n", err)
-		c.JSON(http.StatusBadRequest, openai.APIError{
-			Code:    http.StatusBadRequest,
-			Message: err.Error(),
-		})
-		return
-	}
-	defer client.Close()
 
-	model := req.ToGenaiModel()
-	gemini := adapter.NewGeminiAdapter(client, model)
+	gemini := adapter.NewGeminiAdapter(client, req.Model)
 
 	resp, err := gemini.GenerateEmbedding(ctx, messages)
 	if err != nil {
